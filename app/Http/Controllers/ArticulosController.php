@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 use App\Models\Articulos;
 use App\Models\GrupoPedido;
 use App\Models\Pedidos;
+use App\Models\PedidoMks;
 use App\Models\Cliente;
 use App\Models\Usuario;
 use App\Models\DetallePedido;
@@ -372,6 +373,7 @@ class ArticulosController extends Controller
         
         if($data["0"]["nombreCliente"] != ""){
             $nombreCliente = $data["0"]["nombreCliente"];
+            $nombreCliente = strtoupper($nombreCliente);
             //$direccion["0"]["direccionCliente"] != "";
         }
         //001VPQ
@@ -415,9 +417,9 @@ class ArticulosController extends Controller
                 //$pedido_expo_cja->sub_alm = '099C';
                 $pedido_expo_cja->sub_alm = '001C';
                 if($data["0"]["direccion"] != ""){
-                    $pedido_expo_cja->direccion = $data["0"]["direccion"]; 
+                    $pedido_expo_cja->direccion = strtoupper($data["0"]["direccion"]); 
                     $pedido_expo_cja->telefono = $data["0"]["telefono"];
-                    $pedido_expo_cja->cp = $data["0"]["codigoP"];
+                    //$pedido_expo_cja->cp = $data["0"]["codigoP"];
                 }
                 $pedido_expo_cja->save();
             }
@@ -432,7 +434,7 @@ class ArticulosController extends Controller
                 $pedido_expo_paq->sub_alm = '001M';
 
                 if($data["0"]["direccion"] != ""){
-                    $pedido_expo_paq->direccion = $data["0"]["direccion"]; 
+                    $pedido_expo_paq->direccion = strtoupper($data["0"]["direccion"]); 
                     $pedido_expo_paq->telefono = $data["0"]["telefono"];
                     $pedido_expo_paq->cp = $data["0"]["codigoP"];
                 }
@@ -491,8 +493,11 @@ class ArticulosController extends Controller
             }
             DB::commit();
             $idmks = "";
-            if($tieneCja){$idmks = $pedido_expo_cja->id;}
-            if($tienePqt){$idmks .= " ".$pedido_expo_paq->id;}
+
+            
+            if($tieneCja){ $idmks = $pedido_expo_cja->id;}
+            if($tienePqt){ $idmks .= " ".$pedido_expo_paq->id;}
+
             $idmks = trim($idmks);
             $array = array('id' => $gpo_ped->id, 'estado' => "", 
             'total_pedido' => $total_caja + $total_paq,"carrito" => $data, "idmks" => $idmks);
@@ -520,6 +525,10 @@ class ArticulosController extends Controller
                     $result2 = DB::select('EXEC  RCA_Sincroniza_pedidos_ind ?', array($pedido_expo_cja->id));
                     if($result2[0]->mensaje == 'OK'){
                         DB::commit();
+                        $idmerksyst = PedidoMks::where('id_gpo_expo', $pedido_expo_cja->id)->first();
+                        if(is_null($idmerksyst)){
+                            $idmks = "0";
+                        }else $idmks = trim($idmerksyst->num);
                     }else{
                         DB::rollBack();
                     }
@@ -528,14 +537,16 @@ class ArticulosController extends Controller
                     DB::rollBack();
                 }
 
-            //     $result2 = DB::select('EXEC  RCA_Sincroniza_pedidos_ind ?', array($pedido_expo_cja->id));
-            //    // $array = array('id' => "-1", 'estado' => $result2[0]->mensaje, 'total' => 0);
-            //     //return response()->json($array);
-            //         if($result2[0]->mensaje == 'OK'){
-            //             DB::commit();
-            //         }else{
-            //             DB::rollBack();
-            //         }
+                /*
+                    //     $result2 = DB::select('EXEC  RCA_Sincroniza_pedidos_ind ?', array($pedido_expo_cja->id));
+                    //    // $array = array('id' => "-1", 'estado' => $result2[0]->mensaje, 'total' => 0);
+                    //     //return response()->json($array);
+                    //         if($result2[0]->mensaje == 'OK'){
+                    //             DB::commit();
+                    //         }else{
+                    //             DB::rollBack();
+                    //         }
+                */
             }
 
         
@@ -543,14 +554,16 @@ class ArticulosController extends Controller
 
             if($tienePqt){
                 
-                //$result2 = DB::select('EXEC  RCA_Sincroniza_pedidos_ind ?', array($pedido_expo_paq->id));
-            // $array = array('id' => "-1", 'estado' => $result2[0]->mensaje, 'total' => 0);
-                //return response()->json($array);
-                //     if($result2[0]->mensaje == 'OK'){
-                //         DB::commit();
-                //     }else{
-                //         DB::rollBack();
-                //     }
+                /*
+                    //$result2 = DB::select('EXEC  RCA_Sincroniza_pedidos_ind ?', array($pedido_expo_paq->id));
+                    // $array = array('id' => "-1", 'estado' => $result2[0]->mensaje, 'total' => 0);
+                    //return response()->json($array);
+                    //     if($result2[0]->mensaje == 'OK'){
+                    //         DB::commit();
+                    //     }else{
+                    //         DB::rollBack();
+                    //     }
+                */
                 DB::beginTransaction();
                 $result = DB::select('EXEC  RCA_Sincroniza_Bitacoras_Ind ?', array($pedido_expo_paq->id));
                 if( $result[0]->mensaje =='OK'){
@@ -559,6 +572,10 @@ class ArticulosController extends Controller
                     $result2 = DB::select('EXEC  RCA_Sincroniza_pedidos_ind ?', array($pedido_expo_paq->id));
                     if($result2[0]->mensaje == 'OK'){
                         DB::commit();
+                        $idmerksyst = PedidoMks::where('id_gpo_expo', $pedido_expo_paq->id)->first();
+                        if(is_null($idmerksyst)){
+                            $idmks = "0";
+                        }else $idmks .= " ".trim($idmerksyst->num);
                     }else{
                         DB::rollBack();
                     }
@@ -572,7 +589,11 @@ class ArticulosController extends Controller
             'total' => 0);
             return response()->json($array);
         }
-    
+
+        if(!is_null($idmks)){
+            $idmks = trim($idmks);
+            $array['idmks'] = $idmks;
+        }
         return response()->json($array);
     }
 
@@ -748,6 +769,8 @@ class ArticulosController extends Controller
     }
 
     public function productosPromocionados(Request $request){
+        $idmerksyst =  PedidoMks::where('id_gpo_expo', 160)->first();
+        return $idmerksyst->num;
         $claves = array('2857', '27', '4845', '7237', '1466', '3494', '15387', '185' );
         
         $result  = DB::table('invart')
