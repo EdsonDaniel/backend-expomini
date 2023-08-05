@@ -117,6 +117,11 @@ class ArticulosController extends Controller
         'HYCP','COLGATE', 'MINI');
         $buscar = $request->query('search', '');
         $buscar = strtoupper($buscar);
+        $buscar = trim($buscar);
+
+        if($buscar == ""){
+            return [];
+        }
 
         if (in_array($buscar, $lineas)) {
             //return $buscar;
@@ -188,7 +193,8 @@ class ArticulosController extends Controller
             'prmdet.precio_3 as pr_prm3', 'invart.imp1 as imp_1',
             'comimp.imp1 as tasaImp1', 'comimp.imp2 as tasaImp2',
             'comimp.imp3 as tasaImp3', 'fac_ent_sal0 as cve_sim')
-            ->orderByDesc('cve_pro')
+            //->orderByDesc('cve_pro')
+            ->orderBy('des1')
             ->distinct()
             ->limit(50)
             ->get();
@@ -227,10 +233,23 @@ class ArticulosController extends Controller
             
             ->where('invart.alm', '001')
             //->where('invart.alm', '099')
-            ->where('invart.status', '00')
-            ->where('des1', 'like', '%'.$buscar.'%')
+            ->where('invart.status', '00');
+            //->where('des1', 'like', '%'.$buscar.'%');
             //->orWhere('marca', 'like', '%'.$buscar.'%') 
             //->whereNotNull('TpoProm')
+
+            //Si el parametro de busqueda es solo numeros
+            if (preg_match("/^\d+$/", $buscar)) {
+                $result = $result->where('invart.art', '=', $buscar);
+            } else {
+                $palabras = explode(" ", $buscar);
+                for ($i=0; $i < count($palabras) ; $i++) {
+                    ;
+                }
+                $result = $result->where('des1', 'like', '%'.$buscar.'%');
+            }
+
+            $result = $result
             ->select('invart.art','cve_pro','des1','inviar.lin','inviar.s_fam',
             'inviar.s_lin','uds_min','cant_pre3', 'TpoProm', 'prmhdr.NumProm as num_prom',
             'uds as ud_pre3', 'invmca.descr as marca','invart.precio_vta0',
@@ -241,7 +260,8 @@ class ArticulosController extends Controller
             'prmdet.precio_3 as pr_prm3', 'invart.imp1 as imp_1',
             'comimp.imp1 as tasaImp1', 'comimp.imp2 as tasaImp2',
             'comimp.imp3 as tasaImp3', 'fac_ent_sal0 as cve_sim')
-            ->orderByDesc('cve_pro')
+            //->orderByDesc('cve_pro')
+            ->orderBy('des1')
             ->distinct()
             ->limit(50)
             ->get();
@@ -770,7 +790,7 @@ class ArticulosController extends Controller
 
     public function productosPromocionados(Request $request){
         $idmerksyst =  PedidoMks::where('id_gpo_expo', 160)->first();
-        return $idmerksyst->num;
+        //return $idmerksyst->num;
         $claves = array('2857', '27', '4845', '7237', '1466', '3494', '15387', '185' );
         
         $result  = DB::table('invart')
