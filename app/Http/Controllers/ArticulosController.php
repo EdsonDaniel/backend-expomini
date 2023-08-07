@@ -231,22 +231,33 @@ class ArticulosController extends Controller
                 DB::raw('(comimp.clave '),'=', 
                 DB::raw(" invart.imp1 and comimp.modulo = 'V')"))
             
-            ->where('invart.alm', '001')
+            ->where('invart.alm','=', '001')
             //->where('invart.alm', '099')
-            ->where('invart.status', '00');
+            ->where('invart.status','=' ,'00');
             //->where('des1', 'like', '%'.$buscar.'%');
             //->orWhere('marca', 'like', '%'.$buscar.'%') 
             //->whereNotNull('TpoProm')
 
             //Si el parametro de busqueda es solo numeros
             if (preg_match("/^\d+$/", $buscar)) {
-                $result = $result->where('invart.art', '=', $buscar);
+                $result = $result->where('invart.art', '=', $buscar)
+                ->limit(1);
             } else {
                 $palabras = explode(" ", $buscar);
-                for ($i=0; $i < count($palabras) ; $i++) {
-                    ;
+                if(count($palabras) > 1){
+                    $consulta = "(( des1 like '%".$palabras[0]."%' ) ";
+                    //->whereRaw('price > IF(state = "TX", ?, 100)', [200])
+                    //(i.des1 like '%VD%' or i.des2 like '%VD%') and (i.des1 like '%CARA%' or i.des2 like '%CARA%')
+                    for ($i=1; $i < count($palabras) ; $i++) {
+                        $consulta .= " and (des1 like '%".$palabras[$i]."%' )";
+                    }
+                    $consulta .= ")";
+                    $result = $result ->whereRaw($consulta, []);
                 }
-                $result = $result->where('des1', 'like', '%'.$buscar.'%');
+                else{
+                    $result = $result->where('des1', 'like', '%'.$buscar.'%');
+                }
+                $result = $result->limit(50);
             }
 
             $result = $result
@@ -263,8 +274,10 @@ class ArticulosController extends Controller
             //->orderByDesc('cve_pro')
             ->orderBy('des1')
             ->distinct()
-            ->limit(50)
+            
+            //->toSql();
             ->get();
+            return $result;
         }
             //->toArray();
 
@@ -359,8 +372,12 @@ class ArticulosController extends Controller
             ->orderBy('factor_uds')
             ->get();
             //->toSql()
-        
-        $datos = array('prm' => $promociones , 'pre'=>$presentaciones);
+        $escala = DB::table('RCA_Expoprevio')
+            ->where('Arti', '=', $art)
+            ->distinct()
+            ->first();
+            //->get();
+        $datos = array('prm' => $promociones , 'pre'=>$presentaciones, 'escala' => $escala);
         return response()->json($datos);
     }
 
@@ -499,7 +516,8 @@ class ArticulosController extends Controller
                     $total_caja += $value["precioCobrar"] * $value["cantidad"];
                 }
 
-                $detallePedido->save();
+                if($precioSinImp2 > 0)
+                    $detallePedido->save();
             }
             
             if($tieneCja){
